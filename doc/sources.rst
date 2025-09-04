@@ -6,6 +6,7 @@ Sources
 MapProxy supports the following sources:
 
 - :ref:`wms_label`
+- :ref:`wmts_label`
 - :ref:`arcgis_label`
 - :ref:`tiles_label`
 - :ref:`mapserver_label`
@@ -309,6 +310,115 @@ Full example:
       layers: roads
       another_param: bar
       transparent: true
+
+
+.. _wmts_label:
+
+WMTS
+""""
+
+Use the type ``wmts`` to request data from WMTS (Web Map Tile Service) servers. WMTS sources are particularly useful for seeding caches from existing tile services that support multi-dimensional data like time series or elevation data.
+
+``url``
+^^^^^^^
+
+The base URL of the WMTS service. This should be the URL without the specific layer and tile parameters.
+
+.. code-block:: yaml
+
+  sources:
+    satellite_wmts:
+      type: wmts
+      url: http://example.com/wmts/
+      layer: satellite_layer
+
+``layer``
+^^^^^^^^^
+
+The name of the WMTS layer to request from the service.
+
+``tilematrixset``
+^^^^^^^^^^^^^^^^^
+
+The tile matrix set identifier used by the WMTS service. Defaults to ``GLOBAL_MERCATOR`` if not specified.
+
+.. code-block:: yaml
+
+  sources:
+    satellite_wmts:
+      type: wmts
+      url: http://example.com/wmts/
+      layer: satellite_layer
+      tilematrixset: GoogleMapsCompatible
+
+``format``
+^^^^^^^^^^
+
+The image format for tile requests. Defaults to ``png`` if not specified.
+
+``dimensions``
+^^^^^^^^^^^^^^
+
+Static dimensions to be used for all requests to this WMTS source. These dimensions will be added as query parameters to all tile requests. When using WMTS sources for seeding with :ref:`seed_dimensions`, the seeding dimensions will override these defaults for each specific seeding task.
+
+.. code-block:: yaml
+
+  sources:
+    time_series_wmts:
+      type: wmts
+      url: http://example.com/wmts/
+      layer: weather_data
+      dimensions:
+        time: '2023-01-01T00:00:00Z'
+        elevation: '1000'
+
+``grid``
+^^^^^^^^
+
+The grid of the WMTS source. If not specified, MapProxy will attempt to determine the appropriate grid based on the ``tilematrixset``. For ``GLOBAL_MERCATOR``, it defaults to the Web Mercator grid (EPSG:3857).
+
+.. code-block:: yaml
+
+  sources:
+    custom_wmts:
+      type: wmts
+      url: http://example.com/wmts/
+      layer: custom_layer
+      grid: my_custom_grid
+
+WMTS with Dimensions for Seeding
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+WMTS sources are particularly powerful when combined with :ref:`seed_dimensions` for seeding multi-dimensional datasets. When dimensions are specified in the seed configuration, MapProxy creates separate seeding tasks for each combination of dimension values, and the WMTS source dynamically builds the appropriate URLs with the correct dimension parameters.
+
+.. code-block:: yaml
+
+  # mapproxy.yaml
+  sources:
+    weather_wmts:
+      type: wmts
+      url: http://weather.example.com/wmts/
+      layer: temperature
+      dimensions:
+        time: 'current'  # default fallback
+        elevation: '0'   # default fallback
+
+  # seed.yaml
+  seeds:
+    weather_seed:
+      caches: [weather_cache]
+      levels: [0, 1, 2, 3]
+      dimensions:
+        time: ['2023-01-01T00:00:00Z', '2023-01-01T06:00:00Z', '2023-01-01T12:00:00Z']
+        elevation: ['1000', '1500', '2000']
+
+This configuration will create 9 seeding tasks (3 time values × 3 elevation values), each making requests with the appropriate dimension parameters:
+
+- ``http://weather.example.com/wmts/temperature/GLOBAL_MERCATOR/0/0/0.png?time=2023-01-01T00:00:00Z&elevation=1000``
+- ``http://weather.example.com/wmts/temperature/GLOBAL_MERCATOR/0/0/0.png?time=2023-01-01T00:00:00Z&elevation=1500``
+- And so on for each combination...
+
+See :ref:`seed_dimensions` for more information about configuring multi-dimensional seeding.
 
 
 .. _arcgis_label:

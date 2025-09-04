@@ -1087,6 +1087,23 @@ class DebugSourceConfiguration(SourceConfiguration):
         return DebugSource()
 
 
+class WMTSSourceConfiguration(SourceConfiguration):
+    source_type = ('wmts',)
+    required_keys = set('type url layer'.split())
+
+    def source(self, params=None):
+        from mapproxy.source.wmts import WMTSSource
+        image_opts = self.image_opts(format=params.get('format') if params else None)
+        return WMTSSource(
+            url=self.conf['url'],
+            layer=self.conf['layer'],
+            image_opts=image_opts,
+            tilematrixset=self.conf.get('tilematrixset'),
+            format=self.conf.get('format', 'png'),
+            dimensions=self.conf.get('dimensions')
+        )
+
+
 source_configuration_types = {
     'wms': WMSSourceConfiguration,
     'arcgis': ArcGISSourceConfiguration,
@@ -1094,6 +1111,7 @@ source_configuration_types = {
     'debug': DebugSourceConfiguration,
     'mapserver': MapServerSourceConfiguration,
     'mapnik': MapnikSourceConfiguration,
+    'wmts': WMTSSourceConfiguration,
 }
 
 

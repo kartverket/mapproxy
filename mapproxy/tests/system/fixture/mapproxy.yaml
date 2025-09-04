@@ -1,0 +1,26 @@
+# mapproxy.yaml
+services:
+  wms:
+  tms:
+  wmts:
+
+layers:
+  - name: wmts_layer
+    title: WMTS Layer
+    sources: [wmts_cache]
+
+caches:
+  wmts_cache:
+    grids: [GLOBAL_MERCATOR]
+    sources: [wmts_source]
+
+sources:
+  wmts_source:
+    type: wmts
+    url: http://127.0.0.1:5000/
+    layer: wmts_layer
+
+grids:
+  GLOBAL_MERCATOR:
+    base: GLOBAL_MERCATOR
+    srs: 'EPSG:3857'

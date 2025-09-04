@@ -155,7 +155,10 @@ class TileSeedWorker(TileWorker):
             if tiles is None:
                 return
             with self.tile_mgr.session():
+                # Pass dimensions from the task to tile manager for WMTS support
+                dimensions = getattr(self.task, 'dimensions', None)
                 exp_backoff(self.tile_mgr.load_tile_coords, args=(tiles,),
+                            kw={'dimensions': dimensions},
                             max_repeat=100, max_backoff=600,
                             exceptions=(SourceError, IOError), ignore_exceptions=(LockTimeout, ))
 
@@ -167,7 +170,9 @@ class TileCleanupWorker(TileWorker):
             if tiles is None:
                 return
             with self.tile_mgr.session():
-                self.tile_mgr.remove_tile_coords(tiles)
+                # Pass dimensions from the task to tile manager for consistency
+                dimensions = getattr(self.task, 'dimensions', None)
+                self.tile_mgr.remove_tile_coords(tiles, dimensions=dimensions)
 
 
 class SeedProgress(object):
@@ -448,7 +453,7 @@ class TileWalker(object):
 
 
 class SeedTask(object):
-    def __init__(self, md, tile_manager, levels, refresh_timestamp, refresh_all, coverage):
+    def __init__(self, md, tile_manager, levels, refresh_timestamp, refresh_all, coverage, dimensions=None):
         self.md = md
         self.tile_manager = tile_manager
         self.grid = tile_manager.grid
@@ -456,10 +461,16 @@ class SeedTask(object):
         self.refresh_timestamp = refresh_timestamp
         self.refresh_all = refresh_all
         self.coverage = coverage
+        self.dimensions = dimensions or {}
 
     @property
     def id(self):
-        return self.md['name'], self.md['cache_name'], self.md['grid_name'], tuple(self.levels)
+        base_id = (self.md['name'], self.md['cache_name'], self.md['grid_name'], tuple(self.levels))
+        if self.dimensions:
+            # Include dimensions in the task ID so different dimension combinations are separate tasks
+            dim_tuple = tuple(sorted(self.dimensions.items()))
+            return base_id + (dim_tuple,)
+        return base_id
 
     def intersects(self, bbox):
         if self.coverage.contains(bbox, self.grid.srs):

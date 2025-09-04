@@ -156,6 +156,54 @@ class ConfigurationBase(object):
         self.caches = self._caches()
         self.grids = self._grids(self.caches)
         self.levels = levels_from_options(conf)
+        self.dimensions = self._dimensions()
+
+    def _dimensions(self):
+        """
+        Parse dimensions from the seed configuration.
+        Returns a list of dimension combinations to be seeded.
+        
+        Example config:
+        dimensions:
+          time: ['2023-01-01', '2023-01-02']
+          elevation: ['100', '200']
+        
+        Returns: [
+          {'time': '2023-01-01', 'elevation': '100'},
+          {'time': '2023-01-01', 'elevation': '200'},
+          {'time': '2023-01-02', 'elevation': '100'},
+          {'time': '2023-01-02', 'elevation': '200'},
+        ]
+        """
+        dimensions_conf = self.conf.get('dimensions', {})
+        if not dimensions_conf:
+            return [{}]  # Single empty dimension set for no dimensions
+        
+        # Convert single values to lists
+        dimension_values = {}
+        for dim_name, values in dimensions_conf.items():
+            if isinstance(values, str):
+                dimension_values[dim_name] = [values]
+            else:
+                dimension_values[dim_name] = values
+        
+        # Generate all combinations of dimension values
+        import itertools
+        
+        if not dimension_values:
+            return [{}]
+        
+        # Get all dimension names and their values
+        dim_names = list(dimension_values.keys())
+        value_lists = [dimension_values[name] for name in dim_names]
+        
+        # Generate cartesian product of all dimension value combinations
+        combinations = []
+        for combination in itertools.product(*value_lists):
+            dim_dict = dict(zip(dim_names, combination))
+            combinations.append(dim_dict)
+        
+        return combinations
 
     def _coverages(self):
         coverage = None
@@ -241,15 +289,19 @@ class SeedConfiguration(ConfigurationBase):
                 if not tile_manager.cache.supports_timestamp:
                     self.refresh_all = True
 
-                md = dict(name=self.name, cache_name=cache_name, grid_name=grid_name)
+                # Generate tasks for each dimension combination
+                for dimension_values in self.dimensions:
+                    md = dict(name=self.name, cache_name=cache_name, grid_name=grid_name)
+                    if dimension_values:
+                        md['dimensions'] = dimension_values
 
-                if tile_manager.rescale_tiles:
-                    if tile_manager.rescale_tiles > 0:
-                        levels = levels[::-1]
-                    for level in levels:
-                        yield SeedTask(md, tile_manager, [level], self.refresh_timestamp, self.refresh_all, coverage)
-                else:
-                    yield SeedTask(md, tile_manager, levels, self.refresh_timestamp, self.refresh_all, coverage)
+                    if tile_manager.rescale_tiles:
+                        if tile_manager.rescale_tiles > 0:
+                            levels = levels[::-1]
+                        for level in levels:
+                            yield SeedTask(md, tile_manager, [level], self.refresh_timestamp, self.refresh_all, coverage, dimensions=dimension_values)
+                    else:
+                        yield SeedTask(md, tile_manager, levels, self.refresh_timestamp, self.refresh_all, coverage, dimensions=dimension_values)
 
 
 class CleanupConfiguration(ConfigurationBase):

@@ -1,0 +1,53 @@
+# Complete WMTS Seeding Configuration Example
+# This example shows how to configure WMTS sources with multi-dimensional seeding
+
+services:
+  demo:
+  wmts:
+  tms:
+  kml:
+
+layers:
+  - name: weather_temperature
+    title: Weather Temperature Data
+    sources: [weather_cache]
+  
+  - name: satellite_imagery
+    title: Satellite Imagery
+    sources: [satellite_cache]
+
+caches:
+  weather_cache:
+    grids: [GLOBAL_MERCATOR]
+    sources: [weather_wmts]
+    
+  satellite_cache:
+    grids: [GLOBAL_MERCATOR]
+    sources: [satellite_wmts]
+
+sources:
+  # WMTS source with multi-dimensional support
+  weather_wmts:
+    type: wmts
+    url: http://weather.example.com/wmts/
+    layer: temperature
+    tilematrixset: GLOBAL_MERCATOR
+    format: png
+    dimensions:
+      time: 'current'      # Default fallback value
+      elevation: '0'       # Default fallback value
+      
+  # WMTS source for satellite imagery
+  satellite_wmts:
+    type: wmts
+    url: http://satellite.example.com/wmts/
+    layer: rgb_imagery
+    tilematrixset: GoogleMapsCompatible
+    format: jpeg
+    dimensions:
+      time: 'latest'       # Default fallback value
+
+grids:
+  GLOBAL_MERCATOR:
+    srs: EPSG:3857
+    origin: nw

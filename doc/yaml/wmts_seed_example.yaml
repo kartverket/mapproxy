@@ -1,0 +1,51 @@
+# WMTS Seeding Configuration Example
+# Use with wmts_seeding_example.yaml mapproxy configuration
+
+seeds:
+  # Multi-dimensional weather data seeding
+  weather_multi_dim_seed:
+    caches: [weather_cache]
+    levels: [0, 1, 2, 3, 4]
+    coverages: [europe]
+    dimensions:
+      # Creates separate tasks for each time/elevation combination
+      time: ['2023-01-01T00:00:00Z', '2023-01-01T06:00:00Z', '2023-01-01T12:00:00Z', '2023-01-01T18:00:00Z']
+      elevation: ['surface', '1000', '1500', '2000', '2500']
+    # Total tasks created: 4 time × 5 elevation = 20 seeding tasks
+    
+  # Single dimension satellite imagery seeding  
+  satellite_time_seed:
+    caches: [satellite_cache]
+    levels:
+      from: 0
+      to: 6
+    coverages: [north_america]
+    dimensions:
+      time: '2023-01-15T12:00:00Z'
+    # Creates 1 seeding task for the specified time
+    
+  # Basic weather seeding without specific dimensions (uses source defaults)
+  weather_basic_seed:
+    caches: [weather_cache]
+    levels: [0, 1, 2]
+    # No dimensions specified - uses source default values
+    # (time: 'current', elevation: '0')
+
+cleanups:
+  # Clean up old weather data
+  weather_cleanup:
+    caches: [weather_cache]
+    remove_before:
+      days: 7
+    levels:
+      from: 0
+      to: 4
+
+coverages:
+  europe:
+    bbox: [-10, 35, 40, 70]
+    bbox_srs: EPSG:4326
+    
+  north_america:
+    bbox: [-180, 30, -50, 80]
+    bbox_srs: EPSG:4326

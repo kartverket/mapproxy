@@ -999,3 +999,74 @@ For example:
       grids: [sub_grid]
       sources: [full_cache]
       disable_storage: true
+
+
+.. _wmts_seeding:
+
+WMTS Seeding with Dimensions
+============================
+
+WMTS (Web Map Tile Service) sources can be configured for seeding, including support for multi-dimensional data such as time series or elevation data. This is particularly useful for weather data, satellite imagery, or any other dataset that varies across dimensions.
+
+Basic WMTS Configuration
+-------------------------
+
+Here's a basic WMTS source configuration:
+
+.. code-block:: yaml
+
+  sources:
+    weather_wmts:
+      type: wmts
+      url: http://weather.example.com/wmts/
+      layer: temperature
+      tilematrixset: GLOBAL_MERCATOR
+      format: png
+      dimensions:
+        time: 'current'      # Default fallback value
+        elevation: '0'       # Default fallback value
+
+Multi-dimensional Seeding
+--------------------------
+
+When seeding WMTS sources with dimensions, MapProxy creates separate seeding tasks for each combination of dimension values:
+
+**MapProxy Configuration (mapproxy.yaml):**
+
+.. literalinclude:: yaml/wmts_seeding_example.yaml
+
+**Seed Configuration (seed.yaml):**
+
+.. literalinclude:: yaml/wmts_seed_example.yaml
+
+In this example:
+
+- The ``weather_multi_dim_seed`` task creates **20 separate seeding tasks** (4 time values × 5 elevation values)
+- Each task generates tiles with appropriate dimension parameters in the URLs
+- The ``satellite_time_seed`` task creates **1 seeding task** for a specific time
+- The ``weather_basic_seed`` task uses the source's default dimension values
+
+Generated WMTS URLs
+--------------------
+
+During seeding, MapProxy generates WMTS tile requests with dimension parameters:
+
+.. code-block:: text
+
+  # Without dimensions
+  http://weather.example.com/wmts/temperature/GLOBAL_MERCATOR/0/0/0.png
+
+  # With dimensions from seeding
+  http://weather.example.com/wmts/temperature/GLOBAL_MERCATOR/0/0/0.png?time=2023-01-01T00:00:00Z&elevation=1000
+  http://weather.example.com/wmts/temperature/GLOBAL_MERCATOR/0/0/0.png?time=2023-01-01T06:00:00Z&elevation=1000
+  # ... and so on for each dimension combination
+
+Benefits
+--------
+
+- **Parallel Processing**: Each dimension combination is a separate task that can be processed independently
+- **Progress Tracking**: Individual progress tracking for each dimension combination
+- **Flexible Configuration**: Mix single values and multiple values as needed
+- **Fallback Support**: Default dimension values ensure compatibility when dimensions aren't specified
+
+You can :download:`download the complete mapproxy configuration <yaml/wmts_seeding_example.yaml>` and :download:`seed configuration <yaml/wmts_seed_example.yaml>`.

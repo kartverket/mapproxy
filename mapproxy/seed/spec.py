@@ -50,6 +50,9 @@ seed_yaml_spec = {
             'refresh_before': time_spec,
             'levels': one_off([int()], from_to_spec),
             'resolutions': one_off([int()], from_to_spec),
+            'dimensions': {
+                anything(): one_off(str(), [str()]),
+            },
         },
     },
     'cleanups': {

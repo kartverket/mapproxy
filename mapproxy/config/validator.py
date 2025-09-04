@@ -32,6 +32,7 @@ with open(os.path.join(os.path.dirname(__file__), 'config-schema.json')) as sche
 
 TAGGED_SOURCE_TYPES = [
     'wms',
+    'wmts',
     'mapserver',
     'mapnik'
 ]

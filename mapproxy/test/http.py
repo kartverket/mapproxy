@@ -277,6 +277,7 @@ class MockServ(object):
         # copy request_responses to be able to reuse it after .reset()
         self._thread.requests_responses[:] = self.requests_responses
         self._thread.start()
+        return self
 
     def __exit__(self, type, value, traceback):
         self._thread.shutdown = True
@@ -509,3 +510,108 @@ def assert_no_cache(resp):
     assert resp.headers["Pragma"] == "no-cache"
     assert resp.headers["Expires"] == "-1"
     assert resp.cache_control.no_store is True
+
+
+def mock_wmts_handler(requests_responses, unordered=False, query_comparator=None):
+    if query_comparator is None:
+        query_comparator = query_eq
+
+    class MockWMTSHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.query_data = self.path
+            return self.do_mock_request('GET')
+
+        def _matching_req_resp(self):
+            if len(requests_responses) == 0:
+                return None, None
+            if unordered:
+                for req_resp in requests_responses:
+                    req, resp = req_resp
+                    if query_comparator(req['path'], self.query_data):
+                        requests_responses.remove(req_resp)
+                        return req, resp
+                return None, None
+            else:
+                return requests_responses.pop(0)
+
+        def do_mock_request(self, method):
+            req, resp = self._matching_req_resp()
+            if not req:
+                self.server.assertions.append(
+                    RequestError('got unexpected request: %s' % self.query_data)
+                )
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            if not query_comparator(req['path'], self.query_data):
+                self.server.assertions.append(
+                    RequestMismatch('requests differ', req['path'], self.query_data)
+                )
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            self.start_response(resp)
+            if resp.get('body_file'):
+                with open(resp['body_file'], 'rb') as f:
+                    self.wfile.write(f.read())
+            else:
+                if 'body' in resp:
+                    self.wfile.write(resp['body'])
+                else:
+                    self.wfile.write(b'')
+            if not requests_responses:
+                self.server.shutdown = True
+            return
+
+        def start_response(self, resp):
+            self.send_response(int(resp.get('status', '200')))
+            if 'headers' in resp:
+                for key, value in resp['headers'].items():
+                    self.send_header(key, value)
+            self.end_headers()
+
+        def log_request(self, code, size=None):
+            pass
+
+    return MockWMTSHandler
+
+
+class MockWMTSServ(MockServ):
+    def __init__(self, port=0, host='localhost', unordered=False):
+        MockServ.__init__(self, port=port, host=host, unordered=unordered)
+
+    def _init_thread(self):
+        self._thread = ThreadedStopableHTTPServer((self.host, self._requested_port),
+                                                  [], unordered=self.unordered, query_comparator=self.query_comparator)
+        if self._requested_port == 0:
+            self.port = self._thread.http_port
+        self.address = (self.host, self.port)
+
+    def expects_tile(self, layer, tms, z, x, y, format='png'):
+        path = '/{layer}/{tms}/{z}/{x}/{y}.{format}'.format(
+            layer=layer, tms=tms, z=z, x=x, y=y, format=format
+        )
+        return self.expects(path)
+
+    def expects_capabilities(self):
+        return self.expects('/1.0.0/WMTSCapabilities.xml')
+
+
+@contextmanager
+def mock_wmts_httpd(address, requests_responses, unordered=False):
+    t = ThreadedStopableHTTPServer(address, requests_responses, unordered=unordered,
+                                   query_comparator=query_eq)
+    t.start()
+    try:
+        yield
+    except Exception:
+        if not t.sucess:
+            print(str(RequestsMismatchError(t.assertions)))
+        raise
+    finally:
+        t.shutdown = True
+        t.join(30)
+    if not t.sucess:
+        raise RequestsMismatchError(t.assertions)

@@ -593,6 +593,11 @@ mapproxy_yaml_spec = {
             }),
             'debug': {
             },
+            'wmts': combined(source_commons, {
+                required('url'): str(),
+                required('layer'): str(),
+                'image': image_opts,
+            }),
         })
     },
 

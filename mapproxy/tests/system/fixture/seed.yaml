@@ -1,0 +1,8 @@
+# seed.yaml
+seeds:
+  wmts_seed:
+    caches: [wmts_cache]
+    grids: [GLOBAL_MERCATOR]
+    levels:
+      from: 0
+      to: 0

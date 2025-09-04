@@ -268,6 +268,59 @@ Examples:
 
 A list with coverage names. Limits the seed area to the coverages. By default, the whole coverage of the grids will be seeded.
 
+.. _seed_dimensions:
+
+``dimensions``
+~~~~~~~~~~~~~~
+
+.. versionadded:: 2.1.0
+
+Configure multi-dimensional seeding for sources that support dimensions, such as :ref:`wmts_label` sources with time series or elevation data. When dimensions are specified, MapProxy creates separate seeding tasks for each combination of dimension values using a cartesian product.
+
+The dimensions option takes a dictionary where keys are dimension names and values are either:
+
+- A single value (string or number)
+- A list of values for generating multiple combinations
+
+Examples:
+
+.. code-block:: yaml
+
+  # Single dimension values
+  dimensions:
+    time: '2023-01-01T00:00:00Z'
+    elevation: 1000
+
+  # Multiple values - creates 6 tasks (2 time × 3 elevation)
+  dimensions:
+    time: ['2023-01-01T00:00:00Z', '2023-01-01T12:00:00Z']
+    elevation: [1000, 1500, 2000]
+
+  # Mixed single and multiple values - creates 3 tasks (1 time × 3 elevation)
+  dimensions:
+    time: '2023-01-01T00:00:00Z'
+    elevation: [1000, 1500, 2000]
+
+When using dimensions, each combination creates a separate seeding task with its own progress tracking. For example, with 2 time values and 3 elevation values, you get 6 independent seeding tasks that can be processed in parallel.
+
+Multi-dimensional seeding is particularly useful for:
+
+- **Time series data**: Seeding weather data, satellite imagery, or other temporal datasets
+- **Elevation data**: Seeding atmospheric or oceanographic data at different altitudes/depths  
+- **Custom dimensions**: Any other dimension supported by your WMTS source
+
+The dimension values are passed to the source during tile requests. For WMTS sources, they are added as query parameters to the tile URLs:
+
+.. code-block:: text
+
+  # Without dimensions
+  http://example.com/wmts/layer/GLOBAL_MERCATOR/0/0/0.png
+
+  # With dimensions
+  http://example.com/wmts/layer/GLOBAL_MERCATOR/0/0/0.png?time=2023-01-01T00:00:00Z&elevation=1000
+
+.. note:: Dimensions support depends on the source type. Currently, :ref:`wmts_label` sources fully support multi-dimensional seeding. Other source types may ignore dimension parameters.
+
 ``refresh_before``
 ~~~~~~~~~~~~~~~~~~
 
@@ -318,6 +371,24 @@ Example
       levels:
         from: 11
         to: 15
+
+    # Multi-dimensional WMTS seeding example
+    weather_seed:
+      caches: [weather_cache]
+      levels: [0, 1, 2, 3, 4]
+      dimensions:
+        time: ['2023-01-01T00:00:00Z', '2023-01-01T06:00:00Z', '2023-01-01T12:00:00Z']
+        elevation: [1000, 1500, 2000]
+      # This creates 9 seeding tasks (3 time × 3 elevation combinations)
+
+    # Single dimension seeding
+    satellite_seed:
+      caches: [satellite_cache]
+      levels: [0, 1, 2, 3, 4, 5]
+      coverages: [europe]
+      dimensions:
+        time: '2023-01-01T12:00:00Z'
+      # This creates 1 seeding task with the specified time
 
 ``cleanups``
 ------------

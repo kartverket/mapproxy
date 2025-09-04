@@ -6,7 +6,31 @@ seeds:
       to: 16
     coverages: [germany]
 
+  # WMTS seeding with multi-dimensional data
+  weather_wmts_seed:
+    caches: [weather_cache]
+    levels: [0, 1, 2, 3, 4]
+    coverages: [europe]
+    dimensions:
+      time: ['2023-01-01T00:00:00Z', '2023-01-01T06:00:00Z', '2023-01-01T12:00:00Z']
+      elevation: [1000, 1500, 2000]
+    # Creates 9 separate seeding tasks (3 time × 3 elevation combinations)
+
+  # WMTS seeding with single dimension
+  satellite_wmts_seed:
+    caches: [satellite_cache]
+    levels:
+      from: 0
+      to: 8
+    dimensions:
+      time: '2023-01-01T12:00:00Z'
+    # Creates 1 seeding task for the specified time
+
 coverages:
   germany:
     polygons: ./GM.txt
     polygons_srs: EPSG:900913
+
+  europe:
+    bbox: [-10, 35, 40, 70]
+    bbox_srs: EPSG:4326
