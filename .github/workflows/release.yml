@@ -21,10 +21,10 @@ jobs:
           sudo apt -y install --no-install-recommends python3-pil python3-yaml python3-pyproj libgeos-dev python3-lxml libgdal-dev python3-shapely libxml2-dev libxslt-dev
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
 
       - name: Make wheel
         run: |
