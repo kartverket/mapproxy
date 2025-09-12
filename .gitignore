@@ -19,3 +19,7 @@ nosetests*.xml
 
 .idea/
 *.iml
+
+.vscode/
+
+/venv/
